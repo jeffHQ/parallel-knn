@@ -1,0 +1,2 @@
+p,threads,W,frac,n_train,n_test,k,acc,T_total,T_comp,T_comm,workload,time_per_pair
+4,2,8,1.00,1437,360,3,0.9861,4.916889,4.880185,0.041987,517320,9.504541e-06

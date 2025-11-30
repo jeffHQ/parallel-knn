@@ -1,0 +1,3 @@
+Resultados weak scaling (p = 1)
+p,frac,n_train,n_test,k,acc,T_total,T_comp,T_comm,workload,time_per_pair
+1,0.25,359,90,3,0.9333,0.040329,0.038763,0.001456,32310,1.248189e-06
