@@ -1,337 +1,178 @@
-# Parallel KNN on load_digits Dataset
+# KNN Paralelo con MPI, Threads e Híbrido
 
-Proyecto de curso de **Programación Paralela y Distribuida** que implementa el algoritmo K-Nearest Neighbors (KNN) sobre el dataset `load_digits` de scikit-learn en cuatro versiones:
+## Descripción General
 
-1. **Secuencial**: Implementación baseline sin paralelismo
-2. **MPI**: Paralelismo con paso de mensajes usando `mpi4py`
-3. **OMP-like**: Paralelismo con threads usando `joblib` (estilo OpenMP)
-4. **Híbrido**: Combinación de MPI + threads (MPI entre procesos, threads dentro de cada proceso)
+Este proyecto implementa y analiza el algoritmo K-Nearest Neighbors (KNN) utilizando diferentes estrategias de paralelización sobre el dataset `load_digits` de scikit-learn (1797 muestras de dígitos manuscritos, 64 features por imagen 8x8).
 
-El proyecto incluye experimentos de **strong scaling** y **weak scaling** para cada método paralelo, con análisis de métricas de rendimiento: speedup, eficiencia, tiempo de cómputo, tiempo de comunicación y FLOPs/s efectivos.
+Se implementan cuatro variantes:
 
----
+- **Sequential**: Implementación secuencial de referencia en Python.
+- **MPI**: Paralelización distribuida mediante paso de mensajes con `mpi4py`.
+- **OMP-like**: Paralelización en memoria compartida con hilos usando `joblib` (prefer="threads"), emulando OpenMP.
+- **Hybrid**: Combinación de MPI entre procesos y threads dentro de cada proceso.
 
-## 📋 Contenido
+El proyecto ejecuta experimentos de **strong scaling** (problema fijo, variar recursos) y **weak scaling** (problema escalado con recursos) para cada variante paralela, midiendo:
 
-- [Descripción del Proyecto](#-descripción-del-proyecto)
-- [Requisitos de Software](#-requisitos-de-software)
-- [Instalación en Windows](#-instalación-en-windows)
-- [Estructura del Proyecto](#-estructura-del-proyecto)
-- [Ejecutar los Experimentos](#-ejecutar-los-experimentos)
-  - [1. Secuencial](#1-secuencial)
-  - [2. MPI](#2-mpi-hasta-16-procesos)
-  - [3. OMP](#3-omp-hasta-16-threads)
-  - [4. Híbrido](#4-híbrido-hasta-16-workers)
-- [Generar las Gráficas](#-generar-las-gráficas)
-- [Interpretación de Resultados](#-interpretación-de-resultados)
-- [Solución de Problemas](#-solución-de-problemas)
+- Tiempo total de ejecución
+- Tiempo de cómputo
+- Tiempo de comunicación (MPI/Hybrid)
+- Accuracy
+- Speedup
+- Eficiencia
+- FLOPs/s efectivos
 
----
+Los resultados se almacenan en archivos CSV con formato unificado y se generan gráficas comparativas.
 
-## 🎯 Descripción del Proyecto
+## Requisitos y Dependencias
 
-### Problema
-
-Implementar y comparar diferentes estrategias de paralelización del algoritmo **K-Nearest Neighbors** para clasificación de dígitos (dataset `load_digits` de scikit-learn, 1797 muestras, 64 features por imagen 8x8).
-
-### Métodos de Paralelización
-
-| Versión | Estrategia | Tecnología | Workers Efectivos |
-|---------|-----------|------------|-------------------|
-| **Secuencial** | Sin paralelismo | Python puro + NumPy | W = 1 |
-| **MPI** | Paso de mensajes, datos distribuidos | `mpi4py` | W = p (procesos) |
-| **OMP** | Memoria compartida, threads | `joblib` (threads) | W = threads |
-| **Híbrido** | MPI entre procesos + threads dentro | `mpi4py` + `joblib` | W = p × threads |
-
-### Métricas Analizadas
-
-- **Speedup**: S = T_seq / T_parallel
-- **Eficiencia**: E = S / W
-- **Tiempo total** (t_total): Tiempo completo de ejecución
-- **Tiempo de cómputo** (t_compute): Tiempo de cálculo de distancias
-- **Tiempo de comunicación** (t_comm): Tiempo de scatter/bcast/gather (MPI/Híbrido)
-- **FLOPs/s efectivos**: FLOPs teóricos / t_total
-
-### Tipos de Scaling
-
-- **Strong Scaling**: Problema fijo, aumentar recursos (W)
-  - Tamaño del dataset constante
-  - Esperamos: tiempo disminuye proporcionalmente a W
-  
-- **Weak Scaling**: Problema crece con recursos
-  - Tamaño del dataset ∝ W
-  - Esperamos: tiempo constante (eficiencia ideal)
-
----
-
-## 💻 Requisitos de Software
-
-### Python
+### Software Necesario
 
 - **Python 3.8 o superior** (recomendado: Python 3.10+)
+- **Implementación de MPI**: Microsoft MPI (Windows), MPICH u OpenMPI (Linux/macOS)
 
-### Librerías de Python
+### Librerías Python
 
-Todas están listadas en `requirements.txt`:
+Las dependencias principales están listadas en `requirements.txt`:
 
-```
-numpy>=2.3.0
-scikit-learn>=1.7.0
-matplotlib>=3.10.0
-joblib>=1.5.0
-mpi4py>=4.1.0
-```
+- `numpy>=2.3.0`
+- `scikit-learn>=1.7.0`
+- `matplotlib>=3.10.0`
+- `joblib>=1.5.0`
+- `mpi4py>=4.1.0`
 
-### MPI para Windows
+## Instalación del Entorno
 
-**Microsoft MPI** es la implementación recomendada para Windows:
+### En Windows
 
-- **MS-MPI Runtime**: Necesario para ejecutar programas MPI
-- **MS-MPI SDK**: Necesario para compilar `mpi4py` (incluye headers y librerías)
+#### 1. Instalar Python
 
-**Descarga**: [Microsoft MPI v10.1.2](https://www.microsoft.com/en-us/download/details.aspx?id=100593)
+Descarga Python desde [python.org](https://www.python.org/downloads/) y asegúrate de marcar la opción "Add Python to PATH" durante la instalación.
 
-Instala **ambos** archivos:
+#### 2. Instalar Microsoft MPI
+
+Descarga e instala ambos componentes de [MS-MPI v10.1.2](https://www.microsoft.com/en-us/download/details.aspx?id=100593):
+
 - `msmpisetup.exe` (MS-MPI Runtime)
 - `msmpisdk.msi` (MS-MPI SDK)
 
-### Editor/IDE (Opcional)
-
-- **Visual Studio Code** con extensión de Python
-- **PyCharm**
-- O cualquier editor de texto
-
----
-
-## 🔧 Instalación en Windows
-
-### Paso 1: Instalar Python
-
-1. Descarga Python desde [python.org](https://www.python.org/downloads/)
-2. Durante la instalación, **marca la casilla "Add Python to PATH"**
-3. Verifica la instalación:
-   ```bash
-   python --version
-   ```
-
-### Paso 2: Instalar Microsoft MPI
-
-1. Descarga [MS-MPI v10.1.2](https://www.microsoft.com/en-us/download/details.aspx?id=100593)
-2. Instala **ambos** archivos en orden:
-   - Primero: `msmpisetup.exe`
-   - Segundo: `msmpisdk.msi`
-3. Verifica la instalación (abre una **nueva** terminal):
-   ```bash
-   mpiexec -help
-   ```
-   Deberías ver la ayuda de Microsoft MPI.
-
-### Paso 3: Clonar el Repositorio
+Verifica la instalación ejecutando en una terminal nueva:
 
 ```bash
-cd C:\Users\TuUsuario\Documents
+mpiexec -help
+```
+
+#### 3. Clonar el Repositorio
+
+```bash
 git clone https://github.com/jeffHQ/parallel-knn.git
 cd parallel-knn
 ```
 
-### Paso 4: Crear Entorno Virtual
+#### 4. Crear Entorno Virtual
 
-Es recomendable usar un entorno virtual para aislar las dependencias:
+En PowerShell:
 
-#### En PowerShell:
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-Si obtienes un error de permisos en PowerShell, ejecuta:
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-```
+En CMD:
 
-#### En CMD:
 ```cmd
 python -m venv .venv
 .venv\Scripts\activate.bat
 ```
 
-### Paso 5: Instalar Dependencias
-
-Con el entorno virtual activado:
+#### 5. Instalar Dependencias
 
 ```bash
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-**Nota sobre mpi4py en Windows:**
-- `pip install mpi4py` debería funcionar automáticamente si MS-MPI está correctamente instalado
-- Si falla, asegúrate de que las variables de entorno `MSMPI_BIN` y `MSMPI_INC` estén configuradas (se crean automáticamente por el instalador de MS-MPI)
+#### 6. Verificación
 
-### Paso 6: Verificación Rápida
+Verifica que las librerías principales están instaladas:
 
-#### Verificar entorno Python:
 ```bash
-python -c "import numpy, sklearn, matplotlib, joblib; print('OK: Paquetes básicos instalados')"
+python -c "import numpy, sklearn, matplotlib, joblib; print('Paquetes básicos: OK')"
+python -c "from mpi4py import MPI; print('mpi4py: OK')"
 ```
 
-#### Verificar MPI + mpi4py:
-```bash
-python -c "from mpi4py import MPI; print(f'OK: mpi4py funciona, rank={MPI.COMM_WORLD.rank}')"
-```
+Prueba MPI con múltiples procesos:
 
-#### Prueba MPI con 4 procesos:
 ```bash
 mpiexec -n 4 python -c "from mpi4py import MPI; print(f'Rank {MPI.COMM_WORLD.rank}/{MPI.COMM_WORLD.size}')"
 ```
 
-Deberías ver 4 líneas con ranks 0, 1, 2, 3.
+### En Linux/macOS
 
----
+El proceso es similar, pero instala MPI usando el gestor de paquetes de tu sistema:
 
-## 📁 Estructura del Proyecto
+- **Ubuntu/Debian**: `sudo apt-get install mpich`
+- **Fedora/RHEL**: `sudo dnf install mpich`
+- **macOS (Homebrew)**: `brew install mpich`
 
-```
-parallel-knn/
-├── README.md                    # Este archivo
-├── requirements.txt             # Dependencias Python
-├── src/
-│   ├── core/                    # Módulos reutilizables
-│   │   ├── knn_core.py          # Funciones KNN (distancias, vecinos, votación)
-│   │   ├── data_utils.py        # Carga del dataset
-│   │   ├── csv_utils.py         # Escritura de CSV con formato unificado
-│   │   └── timing_utils.py      # Medición de tiempos y cálculo de métricas
-│   ├── methods/                 # Implementaciones KNN
-│   │   ├── knn_sequential.py    # Versión secuencial
-│   │   ├── knn_mpi.py           # Versión MPI
-│   │   ├── knn_omp.py           # Versión OMP (threads)
-│   │   └── knn_hybrid.py        # Versión híbrida (MPI + threads)
-│   └── experiments/             # Scripts para correr experimentos
-│       ├── seq/
-│       │   ├── experiments_seq.py
-│       │   └── analyze_seq.py
-│       ├── mpi/
-│       │   ├── experiments_mpi_strong.py
-│       │   ├── experiments_mpi_weak.py
-│       │   ├── analyze_mpi_strong.py
-│       │   └── analyze_mpi_weak.py
-│       ├── omp/
-│       │   ├── experiments_omp_strong.py
-│       │   ├── experiments_omp_weak.py
-│       │   ├── analyze_omp_strong.py
-│       │   └── analyze_omp_weak.py
-│       ├── hybrid/
-│       │   ├── experiments_hybrid_strong.py
-│       │   ├── experiments_hybrid_weak.py
-│       │   ├── analyze_hybrid_strong.py
-│       │   └── analyze_hybrid_weak.py
-│       └── compare/
-│           └── compare_parallel_methods.py  # Comparación global
-└── results/                     # Resultados (CSV y gráficas)
-    ├── seq/, mpi/, omp/, hybrid/   # CSVs por método
-    └── figures/                    # Gráficas PNG
-        ├── seq/, mpi/, omp/, hybrid/
-        └── compare/                # Comparación global
-```
+Luego sigue los pasos 3-6 de la sección Windows (usando bash en lugar de PowerShell/CMD).
 
----
+## Ejecución de los Experimentos
 
-## 🚀 Ejecutar los Experimentos
-
-**Importante**: Navega primero al directorio `src/` antes de ejecutar los scripts:
+Todos los scripts deben ejecutarse desde el directorio `src/`:
 
 ```bash
 cd src
 ```
 
-Todos los scripts ahora aceptan argumentos por línea de comandos. Usa `--help` para ver opciones:
+### 1. Sequential (Baseline)
 
-```bash
-python experiments/seq/experiments_seq.py --help
-```
-
-### 1. Secuencial
-
-El experimento secuencial es la **baseline** para calcular speedup y eficiencia.
+La versión secuencial es la referencia para calcular speedup y eficiencia.
 
 ```bash
 python experiments/seq/experiments_seq.py --clear
 ```
 
-**Opciones disponibles:**
+**Opciones disponibles**:
+
 - `--fractions 0.25 0.5 0.75 1.0`: Fracciones del dataset a usar
 - `--k 3`: Número de vecinos
 - `--clear`: Limpiar archivo de resultados antes de empezar
 
 **Salida**: `results/seq/seq.csv`
 
-**Tiempo estimado**: ~2-5 minutos para todas las fracciones
+### 2. MPI (Strong Scaling)
 
----
-
-### 2. MPI (hasta 16 procesos)
-
-#### Strong Scaling
-
-Ejecuta el experimento con **diferentes números de procesos** usando `mpiexec -n <p>`:
+Ejecuta con diferentes números de procesos usando `mpiexec -n <p>`:
 
 ```bash
-# W = 1 (baseline MPI)
+# Baseline (1 proceso)
 mpiexec -n 1 python experiments/mpi/experiments_mpi_strong.py --clear
 
-# W = 2
+# 2 procesos
 mpiexec -n 2 python experiments/mpi/experiments_mpi_strong.py
 
-# W = 4
+# 4 procesos
 mpiexec -n 4 python experiments/mpi/experiments_mpi_strong.py
 
-# W = 8
+# 8 procesos
 mpiexec -n 8 python experiments/mpi/experiments_mpi_strong.py
 
-# W = 16 (máximo en tu máquina con 16 cores lógicos)
+# 16 procesos
 mpiexec -n 16 python experiments/mpi/experiments_mpi_strong.py
 ```
 
 **Salida**: `results/mpi/mpi_strong.csv`
 
-**Opciones adicionales:**
-```bash
-mpiexec -n 4 python experiments/mpi/experiments_mpi_strong.py --fractions 1.0 --k 5
-```
+### 3. OMP-like (Strong Scaling)
 
-#### Weak Scaling
-
-Cada ejecución escala el problema proporcionalmente al número de procesos:
+Ejecuta con diferentes números de threads:
 
 ```bash
-# W = 1 (frac = 0.25)
-mpiexec -n 1 python experiments/mpi/experiments_mpi_weak.py --clear --base-frac 0.25
-
-# W = 2 (frac = 0.5)
-mpiexec -n 2 python experiments/mpi/experiments_mpi_weak.py
-
-# W = 4 (frac = 1.0, máximo dataset)
-mpiexec -n 4 python experiments/mpi/experiments_mpi_weak.py
-
-# W = 8, 16 (frac = 1.0, saturado)
-mpiexec -n 8 python experiments/mpi/experiments_mpi_weak.py
-mpiexec -n 16 python experiments/mpi/experiments_mpi_weak.py
-```
-
-**Salida**: `results/mpi/mpi_weak.csv`
-
----
-
-### 3. OMP (hasta 16 threads)
-
-#### Strong Scaling
-
-```bash
-# Ejecutar para todos los threads de una vez (1, 2, 4, 8, 16)
+# Todos los threads de una vez
 python experiments/omp/experiments_omp_strong.py --clear --threads-list 1 2 4 8 16
 ```
 
-O puedes ejecutar configuraciones individuales:
+O ejecuta configuraciones individuales:
 
 ```bash
 python experiments/omp/experiments_omp_strong.py --clear --threads-list 1
@@ -343,92 +184,63 @@ python experiments/omp/experiments_omp_strong.py --threads-list 16
 
 **Salida**: `results/omp/omp_strong.csv`
 
-#### Weak Scaling
+**Nota**: Debido al Global Interpreter Lock (GIL) de Python, el speedup con threads será sublineal.
 
-```bash
-# Ejecutar para todos los threads de una vez
-python experiments/omp/experiments_omp_weak.py --clear --threads-list 1 2 4 8 16 --base-frac 0.25
-```
+### 4. Hybrid (Strong Scaling)
 
-**Salida**: `results/omp/omp_weak.csv`
-
-**Nota sobre el GIL**: En Python, threads puras tienen limitaciones por el Global Interpreter Lock. No esperes speedup lineal. Este es un buen experimento para entender las limitaciones del threading en Python.
-
----
-
-### 4. Híbrido (hasta 16 workers)
-
-El híbrido combina procesos MPI (`-n <p>`) y threads (`--threads <t>`), donde:
+El método híbrido combina procesos MPI (`-n <p>`) y threads (`--threads <t>`), donde:
 
 **Workers totales: W = p × threads**
 
-#### Strong Scaling
-
-Para alcanzar 16 workers, hay varias combinaciones:
+Para alcanzar 16 workers, hay varias combinaciones posibles:
 
 ```bash
-# W = 1 (baseline híbrido)
+# W = 1 (baseline)
 mpiexec -n 1 python experiments/hybrid/experiments_hybrid_strong.py --clear --threads 1
 
 # W = 2
 mpiexec -n 1 python experiments/hybrid/experiments_hybrid_strong.py --threads 2
-# o alternativamente:
+# o:
 mpiexec -n 2 python experiments/hybrid/experiments_hybrid_strong.py --threads 1
 
 # W = 4
 mpiexec -n 2 python experiments/hybrid/experiments_hybrid_strong.py --threads 2
-# o alternativamente:
+# o:
 mpiexec -n 4 python experiments/hybrid/experiments_hybrid_strong.py --threads 1
 
 # W = 8
 mpiexec -n 2 python experiments/hybrid/experiments_hybrid_strong.py --threads 4
-# o alternativamente:
-mpiexec -n 4 python experiments/hybrid/experiments_hybrid_strong.py --threads 2
 # o:
-mpiexec -n 8 python experiments/hybrid/experiments_hybrid_strong.py --threads 1
+mpiexec -n 4 python experiments/hybrid/experiments_hybrid_strong.py --threads 2
 
-# W = 16 (múltiples combinaciones posibles)
+# W = 16
 mpiexec -n 2 python experiments/hybrid/experiments_hybrid_strong.py --threads 8
+# o:
 mpiexec -n 4 python experiments/hybrid/experiments_hybrid_strong.py --threads 4
+# o:
 mpiexec -n 8 python experiments/hybrid/experiments_hybrid_strong.py --threads 2
-mpiexec -n 16 python experiments/hybrid/experiments_hybrid_strong.py --threads 1
 ```
-
-**Recomendación**: Prueba varias combinaciones (p, threads) para el mismo W para ver cuál balancea mejor.
 
 **Salida**: `results/hybrid/hybrid_strong.csv`
 
-#### Weak Scaling
+### Weak Scaling
 
-```bash
-# W = 1 (p=1, t=1, frac=0.25)
-mpiexec -n 1 python experiments/hybrid/experiments_hybrid_weak.py --clear --threads 1 --base-frac 0.25
+Para experimentos de weak scaling, usa los scripts correspondientes:
 
-# W = 2 (p=1, t=2, frac=0.5)
-mpiexec -n 1 python experiments/hybrid/experiments_hybrid_weak.py --threads 2
+- MPI: `experiments/mpi/experiments_mpi_weak.py`
+- OMP: `experiments/omp/experiments_omp_weak.py`
+- Hybrid: `experiments/hybrid/experiments_hybrid_weak.py`
 
-# W = 4 (p=2, t=2, frac=1.0)
-mpiexec -n 2 python experiments/hybrid/experiments_hybrid_weak.py --threads 2
+En weak scaling, el tamaño del problema escala proporcionalmente con el número de workers.
 
-# W = 8 (p=2, t=4, frac=1.0)
-mpiexec -n 2 python experiments/hybrid/experiments_hybrid_weak.py --threads 4
+## Generar Gráficas
 
-# W = 16 (p=4, t=4, frac=1.0)
-mpiexec -n 4 python experiments/hybrid/experiments_hybrid_weak.py --threads 4
-```
-
-**Salida**: `results/hybrid/hybrid_weak.csv`
-
----
-
-## 📊 Generar las Gráficas
-
-Una vez que hayas ejecutado todos los experimentos, genera las visualizaciones:
+Una vez ejecutados todos los experimentos, genera las visualizaciones:
 
 ### Gráficas por Método
 
 ```bash
-# Sequential (solo muestra tiempos)
+# Sequential
 python experiments/seq/analyze_seq.py
 
 # MPI
@@ -439,192 +251,112 @@ python experiments/mpi/analyze_mpi_weak.py
 python experiments/omp/analyze_omp_strong.py
 python experiments/omp/analyze_omp_weak.py
 
-# Híbrido
+# Hybrid
 python experiments/hybrid/analyze_hybrid_strong.py
 python experiments/hybrid/analyze_hybrid_weak.py
 ```
 
-Las figuras se guardan en `results/figures/<método>/`
+Las figuras se guardan en `results/figures/<método>/`.
 
-### Comparación Global (MPI vs OMP vs Híbrido)
+### Comparación Global
 
-Este script genera gráficas comparativas de **speedup, eficiencia, tiempo total y FLOPs/s** para frac=1.0:
+Este script genera gráficas comparativas de todos los métodos paralelos:
 
 ```bash
 python experiments/compare/compare_parallel_methods.py
 ```
 
 **Salida**: `results/figures/compare/`
-- `compare_speedup_all.png`
-- `compare_efficiency_all.png`
-- `compare_time_all.png`
-- `compare_flops_all.png`
 
-**Requisitos previos**: Debes haber ejecutado **todos** los experimentos strong scaling (seq, mpi, omp, hybrid) con frac=1.0.
+## Resultados
 
----
+A continuación se muestran las gráficas comparativas generadas para los experimentos de strong scaling con el dataset completo (fracción = 1.0).
 
-## 📖 Interpretación de Resultados
+### Comparación de Tiempos de Ejecución
 
-### Speedup Esperado
+![Comparación de tiempos](results/figures/compare/compare_time_all.png)
 
-- **MPI**: Debería escalar razonablemente bien hasta 8-16 procesos
-  - Limitaciones: comunicación (scatter/gather), overhead de MPI
-  
-- **OMP (threads)**: Speedup limitado por el GIL de Python
-  - Típicamente: speedup sublineal, eficiencia < 50% con muchos threads
-  - Razón: Python threads no son verdaderos threads paralelos en operaciones puras Python
-  
-- **Híbrido**: Depende del balance (p, threads)
-  - Puede superar a OMP puro (menos threads = menos contención del GIL)
-  - Puede superar a MPI puro (menos comunicación entre procesos)
-  - El balance óptimo depende del hardware y tamaño del problema
+Comparación del tiempo total de ejecución entre las tres variantes paralelas (MPI, OMP-like, Hybrid) en función del número de workers.
 
-### Strong Scaling
+### Comparación de Speedup
 
-**Ideal**: T(W) = T(1) / W → Speedup = W, Eficiencia = 100%
+![Comparación de speedup](results/figures/compare/compare_speedup_all.png)
 
-**Realidad**: 
-- Overhead de comunicación (MPI/Híbrido)
-- Overhead de sincronización (OMP)
-- Ley de Amdahl: parte secuencial limita speedup
+Speedup alcanzado por cada método paralelo respecto a la versión secuencial. El speedup ideal (lineal) se muestra como referencia.
 
-### Weak Scaling
+### Comparación de Eficiencia
 
-**Ideal**: T(W) = constante cuando problema escala con W → Eficiencia = 100%
+![Comparación de eficiencia](results/figures/compare/compare_efficiency_all.png)
 
-**Realidad**:
-- Overhead de comunicación crece con W (MPI/Híbrido)
-- Dataset pequeño (load_digits solo tiene ~1800 muestras)
+Eficiencia de paralelización (Speedup / Workers) para cada método. Una eficiencia del 100% indica escalado lineal ideal.
 
-### FLOPs/s Efectivos
+### Comparación de FLOPs/s Efectivos
 
-Mide el throughput real considerando todos los overheads:
+![Comparación de FLOPs/s](results/figures/compare/compare_flops_all.png)
 
-**FLOPs/s = FLOPs_totales / t_total**
+Throughput efectivo (FLOPs por segundo) considerando todos los overheads de comunicación y sincronización.
 
-Mayor FLOPs/s → mejor rendimiento efectivo.
+## Estructura del Proyecto
 
-### Tiempos de Comunicación (MPI/Híbrido)
-
-- `t_comm`: scatter, bcast, gather
-- `t_compute`: cálculo de distancias
-- `t_total = t_compute + t_comm + overhead`
-
-Relación `t_comm / t_total` indica si la comunicación es un cuello de botella.
-
----
-
-## 🛠️ Solución de Problemas
-
-### Error: "mpiexec no se reconoce como comando"
-
-**Causa**: MS-MPI no está en el PATH.
-
-**Solución**:
-1. Reinstala MS-MPI (ambos instaladores)
-2. Abre una **nueva** terminal después de instalar
-3. Verifica: `echo %MSMPI_BIN%` (debería mostrar la ruta)
-4. Añade manualmente al PATH si es necesario:
-   ```
-   C:\Program Files\Microsoft MPI\Bin
-   ```
-
-### Error: "Import 'mpi4py' could not be resolved"
-
-**Causa**: `mpi4py` no está instalado o MS-MPI SDK falta.
-
-**Solución**:
-1. Asegúrate de tener MS-MPI SDK instalado
-2. Reinstala `mpi4py`:
-   ```bash
-   pip uninstall mpi4py
-   pip install mpi4py
-   ```
-
-### Experimentos MPI cuelgan o no terminan
-
-**Causa**: Deadlock en MPI o problema de comunicación.
-
-**Solución**:
-1. Verifica que el número de procesos sea razonable (≤ número de cores)
-2. Usa `-n 1` para verificar que el script funciona sin MPI
-3. Revisa si hay firewall bloqueando comunicación local
-
-### OMP no muestra speedup
-
-**Comportamiento esperado**: El GIL de Python limita el paralelismo con threads.
-
-- Threads en Python comparten el GIL, solo una ejecuta bytecode Python a la vez
-- NumPy puede liberar el GIL en operaciones vectorizadas, pero el speedup sigue limitado
-- Este es un resultado válido que muestra las limitaciones del threading en Python
-
-### Resultados inconsistentes o variabilidad alta
-
-**Solución**:
-- Cierra otros programas pesados
-- Ejecuta múltiples repeticiones y promedia
-- Considera aumentar el tamaño del dataset (modificar `base_frac` en weak scaling)
-
-### Error: "FileNotFoundError" al generar gráficas
-
-**Causa**: Faltan los archivos CSV de experimentos.
-
-**Solución**: Ejecuta primero los scripts de experimentos correspondientes.
-
-### Error: "No such file or directory: results/..."
-
-**Causa**: Ejecutando scripts desde el directorio incorrecto.
-
-**Solución**: Asegúrate de estar en el directorio `src/`:
-```bash
-cd src
-python experiments/seq/experiments_seq.py
+```
+parallel-knn/
+├── README.md                    # Este archivo
+├── requirements.txt             # Dependencias Python
+├── src/
+│   ├── core/                    # Módulos reutilizables
+│   │   ├── knn_core.py          # Funciones KNN (distancias, vecinos, votación)
+│   │   ├── data_utils.py        # Carga del dataset
+│   │   ├── csv_utils.py         # Escritura de CSV
+│   │   └── timing_utils.py      # Medición de tiempos y métricas
+│   ├── methods/                 # Implementaciones KNN
+│   │   ├── knn_sequential.py    # Versión secuencial
+│   │   ├── knn_mpi.py           # Versión MPI
+│   │   ├── knn_omp.py           # Versión OMP-like
+│   │   └── knn_hybrid.py        # Versión híbrida
+│   └── experiments/             # Scripts de experimentos y análisis
+│       ├── seq/
+│       ├── mpi/
+│       ├── omp/
+│       ├── hybrid/
+│       └── compare/
+└── results/                     # Resultados (CSV y gráficas)
+    ├── seq/, mpi/, omp/, hybrid/
+    └── figures/
+        ├── seq/, mpi/, omp/, hybrid/
+        └── compare/             # Gráficas comparativas
 ```
 
----
+## Formato de Resultados
 
-## 🎓 Recomendaciones para el Curso
-
-1. **Ejecuta primero el secuencial**: Es tu baseline para todo
-2. **Empieza con pocos workers**: Verifica que todo funciona con W=1,2,4 antes de escalar a 16
-3. **Documenta tus observaciones**: Anota los tiempos y speedups en cada ejecución
-4. **Compara diferentes combinaciones híbridas**: (p=2,t=8) vs (p=4,t=4) vs (p=8,t=2) para W=16
-5. **Analiza los CSV directamente**: Puedes importarlos en Excel/Google Sheets para análisis adicional
-6. **No te preocupes por el bajo speedup de OMP**: Es una limitación conocida de Python, documéntalo en tu reporte
-
----
-
-## 📝 Formato de CSV de Resultados
-
-Todos los experimentos generan CSVs con el mismo formato:
+Todos los experimentos generan archivos CSV con el siguiente formato:
 
 ```
 version,scaling,frac,n_train,n_test,k,p,threads,workers,accuracy,t_total,t_compute,t_comm,flops
 ```
 
-**Ejemplo**:
-```
-mpi,strong,1.0,1437,360,3,4,1,4,0.9722,0.234567,0.195432,0.039135,3456789.0
-```
+Donde:
 
-Este formato unificado permite que el script de comparación funcione sin modificaciones.
+- `version`: sequential, mpi, omp, hybrid
+- `scaling`: strong, weak
+- `frac`: fracción del dataset utilizada
+- `n_train`, `n_test`: tamaños de conjunto de entrenamiento y prueba
+- `k`: número de vecinos
+- `p`: número de procesos MPI
+- `threads`: número de threads por proceso
+- `workers`: total de workers (p × threads)
+- `accuracy`: precisión de clasificación
+- `t_total`, `t_compute`, `t_comm`: tiempos medidos (segundos)
+- `flops`: FLOPs totales ejecutados
 
----
+## Equipo
 
-## 📧 Contacto y Contribuciones
+- Leandro J. Mamani (Desarrollo e implementación)
 
-- **Repositorio**: [github.com/jeffHQ/parallel-knn](https://github.com/jeffHQ/parallel-knn)
-- **Autor**: jeffHQ
-
-Para reportar problemas o sugerir mejoras, abre un issue en GitHub.
-
----
-
-## 📜 Licencia
+## Licencia
 
 Este proyecto es de código abierto para fines educativos.
 
----
+## Contacto
 
-**¡Buena suerte con tus experimentos! 🚀**
+- Repositorio: [github.com/jeffHQ/parallel-knn](https://github.com/jeffHQ/parallel-knn)
+- Autor: jeffHQ
