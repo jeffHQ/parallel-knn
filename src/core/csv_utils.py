@@ -7,23 +7,21 @@ from pathlib import Path
 from typing import Dict, Iterable, Optional
 
 
-# Esquema "amplio" que te sirve para seq, MPI, OMP e híbrido.
-# No tienes que usar todos los campos siempre; se pueden dejar vacíos.
 CSV_COLUMNS = [
-    "version",     # "sequential", "mpi", "omp", "hybrid"
-    "scaling",     # "strong" o "weak"
-    "frac",        # fracción del dataset (0.0–1.0)
+    "version",     
+    "scaling",     
+    "frac",       
     "n_train",
     "n_test",
     "k",
-    "p",           # procesos MPI
-    "threads",     # hilos (joblib)
-    "workers",     # p * threads
+    "p",        
+    "threads",   
+    "workers",    
     "accuracy",
     "t_total",
     "t_compute",
     "t_comm",
-    "flops",       # FLOPs totales de la región de cómputo (opcional)
+    "flops",   
 ]
 
 
@@ -33,16 +31,7 @@ def append_result_row(
     extra: Optional[Dict] = None,
     columns: Optional[Iterable[str]] = None,
 ) -> None:
-    """
-    Añade una fila de resultados a un CSV, creando el archivo y el
-    encabezado si no existen.
-
-    - result: dict que típicamente viene de run_sequential/run_mpi/...,
-      con claves como "n_train", "n_test", "k", "accuracy", "t_total", etc.
-    - extra: dict opcional con metadatos adicionales, por ejemplo
-      {"version": "mpi", "scaling": "strong", "workers": p*threads}.
-    - columns: lista de columnas a usar; si no se da, se usa CSV_COLUMNS.
-    """
+    
     if columns is None:
         columns = CSV_COLUMNS
 

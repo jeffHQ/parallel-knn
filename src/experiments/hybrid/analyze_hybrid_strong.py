@@ -117,9 +117,7 @@ def main() -> None:
     out_dir = Path("results/figures/hybrid")
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # --- Gráficos ---
-
-    # 1) Speedup vs workers
+ 
     plt.figure()
     plt.plot(workers, speedup, marker="o")
     for i in range(len(workers)):
@@ -132,7 +130,7 @@ def main() -> None:
     plt.savefig(out_dir / "hybrid_speedup_vs_workers.png", dpi=300)
     plt.close()
 
-    # 2) Eficiencia vs workers
+
     plt.figure()
     plt.plot(workers, efficiency, marker="o")
     for i in range(len(workers)):

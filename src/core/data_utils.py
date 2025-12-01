@@ -15,12 +15,7 @@ def load_digits_data(
     n_train: Optional[int] = None,
     n_test: Optional[int] = None,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """
-    Carga el dataset digits, hace train/test split estratificado y
-    opcionalmente recorta el número de muestras de train y test.
-
-    Se usa tanto en la versión secuencial como en OMP/MPI/Híbrido.
-    """
+   
     digits = load_digits()
     X_train, X_test, y_train, y_test = train_test_split(
         digits.data,
@@ -47,12 +42,7 @@ def load_digits_data_root(
     test_size: float = 0.2,
     random_state: int = 42,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """
-    Versión pensada para el rank 0 en MPI.
-
-    Hace exactamente lo mismo que load_digits_data, pero la semántica es:
-    'solo la ejecuta el root y luego reparte/broadcastea lo que necesita'.
-    """
+   
     return load_digits_data(
         test_size=test_size,
         random_state=random_state,
@@ -62,9 +52,6 @@ def load_digits_data_root(
 
 
 def get_digits_feature_dim() -> int:
-    """
-    Devuelve el número de características (dimensión) del dataset digits.
-    Útil para calcular FLOPs teóricos.
-    """
+   
     digits = load_digits()
     return digits.data.shape[1]

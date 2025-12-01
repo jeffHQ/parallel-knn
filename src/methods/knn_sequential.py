@@ -17,36 +17,7 @@ def run_sequential(
     n_test: Optional[int] = None,
     plot_examples: bool = False,
 ) -> Dict:
-    """
-    Ejecuta KNN secuencial sobre el dataset digits, mide tiempo y devuelve métricas.
-
-    Esta es la versión baseline utilizada para calcular speedup y eficiencia
-    de las versiones paralelas (MPI, OMP, híbrido).
-
-    Parámetros
-    ----------
-    k : int
-        Número de vecinos para clasificación KNN (default: 3).
-    n_train : int | None
-        Número de muestras de entrenamiento a usar (None = todas disponibles).
-    n_test : int | None
-        Número de muestras de prueba a usar (None = todas disponibles).
-    plot_examples : bool
-        Si es True, muestra algunas predicciones en imágenes usando matplotlib.
-
-    Devuelve
-    --------
-    dict
-        Diccionario con las siguientes claves:
-        - n_train: número real de muestras de entrenamiento
-        - n_test: número real de muestras de test
-        - k: parámetro k usado
-        - accuracy: exactitud de clasificación (0.0-1.0)
-        - t_total: tiempo total de ejecución en segundos
-        - t_compute: tiempo de cómputo (igual a t_total en secuencial)
-        - t_comm: tiempo de comunicación (siempre 0.0 en secuencial)
-        - flops: FLOPs teóricos totales del cómputo de distancias
-    """
+  
     X_train, X_test, y_train, y_test = load_digits_data(
         n_train=n_train,
         n_test=n_test,
@@ -62,8 +33,8 @@ def run_sequential(
     t1 = wall_time()
 
     t_total = t1 - t0
-    t_compute = t_total           # en secuencial, todo es cómputo
-    t_comm = 0.0                  # no hay comunicación
+    t_compute = t_total          
+    t_comm = 0.0                
 
     accuracy = float(np.mean(y_pred == y_test))
 

@@ -21,58 +21,12 @@ def run_hybrid(
     test_size: float = 0.2,
     random_state: int = 42,
 ) -> Optional[Dict]:
-    """
-    Versión híbrida de KNN: combina MPI entre procesos + threads dentro de cada proceso.
-
-    Estrategia de paralelización híbrida:
-    1. MPI reparte el conjunto de entrenamiento entre procesos (scatter)
-    2. Cada proceso replica el conjunto de prueba completo (bcast)
-    3. Dentro de cada proceso MPI, se usan threads (joblib) para paralelizar
-       el cálculo de vecinos locales sobre TODOS los test points
-    4. Se hace UN gather global al root con todos los vecinos locales
-    5. El root fusiona vecinos de todos los procesos y hace voto mayoritario
-
-    Este modelo combina:
-    - Paralelismo de datos (MPI): diferentes procesos tienen diferentes train chunks
-    - Paralelismo de tareas (threads): diferentes threads procesan diferentes test points
-
-    Workers totales efectivos: W = p * threads
-
-    Parámetros
-    ----------
-    k : int
-        Número de vecinos para clasificación KNN (default: 3).
-    n_train : int | None
-        Número de muestras de entrenamiento (None = todas disponibles).
-    n_test : int | None
-        Número de muestras de prueba (None = todas disponibles).
-    n_threads : int
-        Número de hilos por proceso MPI (default: 2).
-    test_size : float
-        Fracción del dataset para test (default: 0.2).
-    random_state : int
-        Semilla para reproducibilidad del split (default: 42).
-
-    Devuelve
-    --------
-    dict | None
-        En el rank 0: diccionario con métricas. En otros ranks: None.
-        
-        Métricas incluidas:
-        - p: número de procesos MPI
-        - threads: número de hilos por proceso
-        - n_train, n_test, k: parámetros del experimento
-        - accuracy: exactitud de clasificación
-        - t_total: tiempo total (MAX entre procesos)
-        - t_compute: tiempo de cómputo (MAX entre procesos)
-        - t_comm: tiempo de comunicación MPI (MAX entre procesos)
-        - flops: FLOPs teóricos totales
-    """
+  
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()  # p
 
-    # -------- 1. Carga y partición del dataset (solo root) --------
+ 
     if rank == 0:
         X_train_full, X_test_full, y_train_full, y_test_full = load_digits_data_root(
             n_train=n_train,
@@ -97,7 +51,7 @@ def run_hybrid(
 
     n_train_global, n_test_global, n_features = comm.bcast(meta, root=0)
 
-    # -------- 2. Scatter del train + bcast del test --------
+   
     t_comm_local = 0.0
     t_comp_local = 0.0
 
@@ -110,7 +64,7 @@ def run_hybrid(
     t1_comm = MPI.Wtime()
     t_comm_local += (t1_comm - t0_comm)
 
-    # -------- 3. Cómputo híbrido: todos los tests en paralelo (hilos) --------
+
     comm.Barrier()
     t_start = MPI.Wtime()
 
@@ -124,7 +78,7 @@ def run_hybrid(
         )
 
     t0_comp = MPI.Wtime()
-    # Lista de longitud n_test_global: para cada test, sus vecinos locales
+
     local_neighbors_list = Parallel(
         n_jobs=n_threads,
         prefer="threads",
@@ -135,7 +89,7 @@ def run_hybrid(
     t1_comp = MPI.Wtime()
     t_comp_local += (t1_comp - t0_comp)
 
-    # -------- 4. Comunicación: un solo gather de todos los vecinos --------
+
     t0_comm = MPI.Wtime()
     all_neighbors_all_procs = comm.gather(local_neighbors_list, root=0)
     t1_comm = MPI.Wtime()
@@ -143,8 +97,7 @@ def run_hybrid(
 
     predictions = None
     if rank == 0:
-        # all_neighbors_all_procs: lista de tamaño p
-        # cada elemento es local_neighbors_list de ese proceso
+   
         predictions = []
         for j in range(n_test_global):
             merged = []
@@ -165,13 +118,13 @@ def run_hybrid(
     comm.Barrier()
     t_end = MPI.Wtime()
 
-    # -------- 5. Reducir tiempos (máximo entre ranks) --------
+ 
     t_total_local = t_end - t_start
     t_total = comm.reduce(t_total_local, op=MPI.MAX, root=0)
     t_comp = comm.reduce(t_comp_local, op=MPI.MAX, root=0)
     t_comm = comm.reduce(t_comm_local, op=MPI.MAX, root=0)
 
-    # -------- 6. Métricas (solo root) --------
+
     if rank == 0:
         y_pred = np.array(predictions, dtype=int)
         accuracy = float(np.mean(y_pred == y_test_local))

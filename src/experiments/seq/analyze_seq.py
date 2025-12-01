@@ -10,10 +10,7 @@ import matplotlib.pyplot as plt
 
 
 def load_seq_results(path: Path):
-    """
-    Lee results/seq/seq.csv y devuelve una lista de dicts
-    con las columnas relevantes convertidas a tipos numéricos.
-    """
+   
     data = []
     with path.open("r", newline="") as f:
         reader = csv.DictReader(f)
@@ -46,7 +43,7 @@ def main() -> None:
         return
 
     data = load_seq_results(results_path)
-    # Ordenamos por fracción para que los gráficos salgan ordenados
+   
     data = sorted(data, key=lambda d: d["frac"])
 
     fracs = np.array([d["frac"] for d in data])

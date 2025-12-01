@@ -9,16 +9,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-# -------------------------------------------------------------------
-# Utils de lectura
-# -------------------------------------------------------------------
-
 def _load_generic_results(path: Path) -> list[dict]:
-    """Lee un CSV de resultados con el formato unificado:
-
-    version,scaling,frac,n_train,n_test,k,p,threads,workers,
-    accuracy,t_total,t_compute,t_comm,flops
-    """
+  
     data: list[dict] = []
 
     if not path.exists():
@@ -57,7 +49,7 @@ def _load_generic_results(path: Path) -> list[dict]:
 
 
 def load_seq_strong(path: Path) -> dict:
-    """Carga la fila secuencial con frac=1.0 (strong scaling)."""
+    
     data = _load_generic_results(path)
     data = [
         d for d in data
@@ -68,19 +60,19 @@ def load_seq_strong(path: Path) -> dict:
             f"No se encontraron filas 'sequential,strong' en {path}"
         )
 
-    # Tomamos frac=1.0
+   
     full = [d for d in data if abs(d["frac"] - 1.0) < 1e-6]
     if not full:
         raise RuntimeError(
             f"No se encontró fila secuencial con frac=1.0 en {path}"
         )
 
-    # Debería haber exactamente una, pero tomamos la primera por si acaso
+
     return full[0]
 
 
 def load_method_strong(path: Path, version: str) -> list[dict]:
-    """Carga filas de un método (mpi, omp, hybrid) para strong scaling."""
+
     data = _load_generic_results(path)
     data = [
         d for d in data
@@ -89,12 +81,9 @@ def load_method_strong(path: Path, version: str) -> list[dict]:
     return data
 
 
-# -------------------------------------------------------------------
-# Comparación MPI vs OMP vs Híbrido
-# -------------------------------------------------------------------
 
 def main() -> None:
-    # Estilo visual decente para las figuras
+   
     plt.style.use("seaborn-v0_8")
 
     base_dir = Path("results")
@@ -107,7 +96,7 @@ def main() -> None:
     out_dir = base_dir / "figures" / "compare"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # ---------------- 1) Baseline secuencial ----------------
+
     if not seq_path.exists():
         print(f"[ERROR] No se encontró {seq_path}. Corre primero experiments_seq.")
         return
@@ -121,7 +110,6 @@ def main() -> None:
     print("Baseline secuencial (frac=1.0):")
     print(seq_full)
 
-    # ---------------- 2) MPI strong (frac=1.0) ----------------
     if not mpi_path.exists():
         print(f"[ERROR] No se encontró {mpi_path}. Corre antes experiments_mpi_strong.")
         return
@@ -133,7 +121,7 @@ def main() -> None:
         print(f"[ERROR] No hay filas MPI con frac=1.0 en {mpi_path}.")
         return
 
-    # Ordenamos por workers (para MPI: workers = p)
+  
     mpi_full.sort(key=lambda d: d["workers"])
 
     W_mpi = np.array([d["workers"] for d in mpi_full], dtype=int)
@@ -144,10 +132,10 @@ def main() -> None:
     speedup_mpi = T_seq_full / T_mpi
     eff_mpi = speedup_mpi / W_mpi
 
-    # FLOPs/s efectivos usando tiempo total (incluye overhead)
+
     flops_mpi = flops_total / T_mpi
 
-    # ---------------- 3) OMP strong (frac=1.0) ----------------
+
     if not omp_path.exists():
         print(f"[ERROR] No se encontró {omp_path}. Corre antes experiments_omp_strong.")
         return
@@ -169,7 +157,7 @@ def main() -> None:
     eff_omp = speedup_omp / W_omp
     flops_omp = flops_total / T_omp
 
-    # ---------------- 4) Hybrid strong (frac=1.0) ----------------
+
     if not hyb_path.exists():
         print(f"[ERROR] No se encontró {hyb_path}. Corre antes experiments_hybrid_strong.")
         return
@@ -181,7 +169,7 @@ def main() -> None:
         print(f"[ERROR] No hay filas HYBRID con frac=1.0 en {hyb_path}.")
         return
 
-    # workers = p * threads
+
     hyb_full.sort(key=lambda d: d["workers"])
 
     W_hyb = np.array([d["workers"] for d in hyb_full], dtype=int)
@@ -193,9 +181,7 @@ def main() -> None:
     eff_hyb = speedup_hyb / W_hyb
     flops_hyb = flops_total / T_hyb
 
-    # -------------------------------------------------------------------
-    # 5) Resumen textual en consola
-    # -------------------------------------------------------------------
+
 
     print("\n== MPI (frac=1.0) ==")
     print("W=p\tT_total\tSpeedup\tEficiencia\tFLOPs/s")
@@ -222,11 +208,9 @@ def main() -> None:
             f"{flops_hyb[i]:.3e}"
         )
 
-    # -------------------------------------------------------------------
-    # 6) Gráficos comparativos
-    # -------------------------------------------------------------------
 
-    # 6.1 Speedup vs W
+
+
     plt.figure(figsize=(7, 5))
     plt.plot(W_mpi, speedup_mpi, "o-", label="MPI")
     plt.plot(W_omp, speedup_omp, "s-", label="OMP")
@@ -240,7 +224,7 @@ def main() -> None:
     plt.savefig(out_dir / "compare_speedup_all.png", dpi=300)
     plt.close()
 
-    # 6.2 Eficiencia vs W
+
     plt.figure(figsize=(7, 5))
     plt.plot(W_mpi, eff_mpi, "o-", label="MPI")
     plt.plot(W_omp, eff_omp, "s-", label="OMP")
@@ -254,7 +238,7 @@ def main() -> None:
     plt.savefig(out_dir / "compare_efficiency_all.png", dpi=300)
     plt.close()
 
-    # 6.3 Tiempo total vs W
+
     plt.figure(figsize=(7, 5))
     plt.plot(W_mpi, T_mpi, "o-", label="MPI")
     plt.plot(W_omp, T_omp, "s-", label="OMP")
@@ -268,7 +252,7 @@ def main() -> None:
     plt.savefig(out_dir / "compare_time_all.png", dpi=300)
     plt.close()
 
-    # 6.4 FLOPs/s efectivos vs W
+
     plt.figure(figsize=(7, 5))
     plt.plot(W_mpi, flops_mpi, "o-", label="MPI")
     plt.plot(W_omp, flops_omp, "s-", label="OMP")

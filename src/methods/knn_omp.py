@@ -19,10 +19,7 @@ def knn_predict_batch_omp(
     k: int,
     n_threads: int,
 ) -> np.ndarray:
-    """
-    Aplica KNN a todos los puntos de prueba usando paralelismo
-    de memoria compartida (joblib) sobre los puntos de prueba.
-    """
+  
     preds = Parallel(n_jobs=n_threads, prefer="threads")(
         delayed(knn_predict_point)(x, X_train, y_train, k) for x in X_test
     )
@@ -35,40 +32,7 @@ def run_omp(
     n_test: Optional[int] = None,
     n_threads: int = 1,
 ) -> Dict:
-    """
-    Ejecuta KNN paralelo usando threads de memoria compartida (estilo OpenMP).
-
-    Implementado con joblib (prefer="threads") para paralelizar sobre los
-    puntos de test. Cada thread clasifica un subconjunto de test points
-    usando todo el conjunto de entrenamiento (compartido en memoria).
-
-    NOTA: En Python, debido al GIL (Global Interpreter Lock), el paralelismo
-    con threads puro no escala tan bien como MPI. Sin embargo, operaciones
-    NumPy vectorizadas pueden liberar el GIL parcialmente.
-
-    Parámetros
-    ----------
-    k : int
-        Número de vecinos para clasificación KNN (default: 3).
-    n_train : int | None
-        Número de muestras de entrenamiento (None = todas disponibles).
-    n_test : int | None
-        Número de muestras de prueba (None = todas disponibles).
-    n_threads : int
-        Número de hilos (n_jobs de joblib, default: 1).
-
-    Devuelve
-    --------
-    dict
-        Diccionario con métricas:
-        - threads: número de hilos usados
-        - n_train, n_test, k: parámetros del experimento
-        - accuracy: exactitud de clasificación
-        - t_total: tiempo total de ejecución
-        - t_compute: tiempo de cómputo (igual a t_total)
-        - t_comm: tiempo de comunicación (siempre 0.0, no hay comunicación explícita)
-        - flops: FLOPs teóricos totales
-    """
+ 
     X_train, X_test, y_train, y_test = load_digits_data(
         n_train=n_train,
         n_test=n_test,

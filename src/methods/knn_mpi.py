@@ -19,48 +19,12 @@ def run_mpi(
     test_size: float = 0.2,
     random_state: int = 42,
 ) -> Optional[Dict]:
-    """
-    Versión paralela de KNN usando MPI (Message Passing Interface).
 
-    Estrategia de paralelización:
-    - El conjunto de entrenamiento se reparte entre procesos (scatter)
-    - El conjunto de prueba se replica en todos los procesos (bcast)
-    - Cada proceso calcula vecinos locales para todos los test points
-    - Se hace gather de vecinos al root para fusión y voto mayoritario
-
-    Parámetros
-    ----------
-    k : int
-        Número de vecinos para clasificación KNN (default: 3).
-    n_train : int | None
-        Número de muestras de entrenamiento (None = todas disponibles).
-    n_test : int | None
-        Número de muestras de prueba (None = todas disponibles).
-    test_size : float
-        Fracción del dataset para test (default: 0.2).
-    random_state : int
-        Semilla para reproducibilidad del split (default: 42).
-
-    Devuelve
-    --------
-    dict | None
-        En el rank 0: diccionario con métricas (igual estructura que run_sequential,
-        más la clave 'p' para número de procesos). En otros ranks: None.
-        
-        Métricas incluidas:
-        - p: número de procesos MPI
-        - n_train, n_test, k: parámetros del experimento
-        - accuracy: exactitud de clasificación
-        - t_total: tiempo total (incluyendo comunicación)
-        - t_compute: tiempo de cómputo local (MAX entre procesos)
-        - t_comm: tiempo de comunicación (MAX entre procesos)
-        - flops: FLOPs teóricos totales
-    """
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()  # p
 
-    # ---------- 1. Carga de datos y particionado (solo root) ----------
+ 
 
     if rank == 0:
         X_train_full, X_test_full, y_train_full, y_test_full = load_digits_data_root(
@@ -84,10 +48,9 @@ def run_mpi(
         y_test_full = None
         meta = None
 
-    # Todos saben cuántos train/test globales hay y cuántas features
     n_train_global, n_test_global, n_features = comm.bcast(meta, root=0)
 
-    # ---------- 2. Comunicación inicial (scatter + bcast) ----------
+
 
     t_comm_local = 0.0
     t_comp_local = 0.0
@@ -102,7 +65,6 @@ def run_mpi(
     t1_comm = MPI.Wtime()
     t_comm_local += (t1_comm - t0_comm)
 
-    # ---------- 3. Bucle principal de clasificación ----------
 
     comm.Barrier()
     t_start = MPI.Wtime()
@@ -112,7 +74,7 @@ def run_mpi(
     for j in range(n_test_global):
         test_point = X_test_local[j]
 
-        # --- Cómputo local: distancias a mi chunk de train ---
+
         t0_comp = MPI.Wtime()
         local_neighbors = compute_local_neighbors(
             test_point=test_point,
@@ -123,13 +85,13 @@ def run_mpi(
         t1_comp = MPI.Wtime()
         t_comp_local += (t1_comp - t0_comp)
 
-        # --- Comunicación: gather de vecinos hacia root ---
+     
         t0_comm = MPI.Wtime()
         all_neighbors = comm.gather(local_neighbors, root=0)
         t1_comm = MPI.Wtime()
         t_comm_local += (t1_comm - t0_comm)
 
-        # --- Fusión y voto mayoritario (solo root) ---
+      
         if rank == 0:
             merged = [item for sublist in all_neighbors for item in sublist]
             if merged:
@@ -138,14 +100,14 @@ def run_mpi(
                 labels = [lab for (_, lab) in top_k]
                 pred_label = majority_vote(labels)
             else:
-                # Caso extremo: nadie tiene vecinos (no debería ocurrir en práctica)
+           
                 pred_label = 0
             predictions.append(pred_label)
 
     comm.Barrier()
     t_end = MPI.Wtime()
 
-    # ---------- 4. Reducir tiempos (máximo entre ranks) ----------
+
 
     t_total_local = t_end - t_start
 
@@ -153,13 +115,13 @@ def run_mpi(
     t_comp = comm.reduce(t_comp_local, op=MPI.MAX, root=0)
     t_comm = comm.reduce(t_comm_local, op=MPI.MAX, root=0)
 
-    # ---------- 5. Métricas (solo root) ----------
+ 
 
     if rank == 0:
         y_pred = np.array(predictions, dtype=int)
         accuracy = float(np.mean(y_pred == y_test_local))
 
-        # FLOPs totales teóricos (misma fórmula que en la versión secuencial)
+      
         flops = compute_knn_flops(
             n_train=n_train_global,
             n_test=n_test_global,
