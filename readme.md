@@ -11,6 +11,16 @@ Se implementan cuatro variantes:
 - **OMP-like**: Paralelización en memoria compartida con hilos usando `joblib` (prefer="threads"), emulando OpenMP.
 - **Hybrid**: Combinación de MPI entre procesos y threads dentro de cada proceso.
 
+
+## Integrantes del Equipo
+
+|    Jeffry Arturo Hilario Quintana    |    Leandro Machaca    |    Maria Fernanda Surco Vergara   |
+| ----------- | ----------- | ----------- |
+| ![](https://avatars.githubusercontent.com/u/85184643?v=4) | ![](https://avatars.githubusercontent.com/u/102132128?s=400&v=4) | ![](https://avatars.githubusercontent.com/u/85299734?v=4) |
+| [](https://github.com/Jeanpierrre) | [](https://github.com/JLeandroJM) | [](https://github.com/Gonzalo-Rod) ]
+
+
+
 El proyecto ejecuta experimentos de **strong scaling** (problema fijo, variar recursos) y **weak scaling** (problema escalado con recursos) para cada variante paralela, midiendo:
 
 - Tiempo total de ejecución
@@ -24,11 +34,6 @@ El proyecto ejecuta experimentos de **strong scaling** (problema fijo, variar re
 Los resultados se almacenan en archivos CSV con formato unificado y se generan gráficas comparativas.
 
 ## Requisitos y Dependencias
-
-### Software Necesario
-
-- **Python 3.8 o superior** (recomendado: Python 3.10+)
-- **Implementación de MPI**: Microsoft MPI (Windows), MPICH u OpenMPI (Linux/macOS)
 
 ### Librerías Python
 
@@ -55,11 +60,6 @@ Descarga e instala ambos componentes de [MS-MPI v10.1.2](https://www.microsoft.c
 - `msmpisetup.exe` (MS-MPI Runtime)
 - `msmpisdk.msi` (MS-MPI SDK)
 
-Verifica la instalación ejecutando en una terminal nueva:
-
-```bash
-mpiexec -help
-```
 
 #### 3. Clonar el Repositorio
 
@@ -118,11 +118,6 @@ Luego sigue los pasos 3-6 de la sección Windows (usando bash en lugar de PowerS
 
 ## Ejecución de los Experimentos
 
-Todos los scripts deben ejecutarse desde el directorio `src/`:
-
-```bash
-cd src
-```
 
 ### 1. Sequential (Baseline)
 
@@ -348,9 +343,6 @@ Donde:
 - `t_total`, `t_compute`, `t_comm`: tiempos medidos (segundos)
 - `flops`: FLOPs totales ejecutados
 
-## Equipo
-
-- Leandro J. Mamani (Desarrollo e implementación)
 
 ## Licencia
 
